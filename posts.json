@@ -8,6 +8,15 @@
       "content": "Hello world!\n这是我的个人博客，我会用它来记录我的日常生活，欢迎随时来访~",
       "content_en": "Hello world!\nThis is my personal blog. I write down my daily life here. You’re always welcome!",
       "media": []
+    },
+    {
+      "id": "20261108-221912-a0af5c",
+      "date": "2026-11-08",
+      "time": "22:19",
+      "font": "serif",
+      "content": "顺便说一嘴，很感谢DeepSeek V4 PRO协助我制作了这个网页❤️",
+      "content_en": "By the way, thanks to DeepSeek V4 PRO for helping me build this webpage ❤️",
+      "media": []
     }
   ]
 }
