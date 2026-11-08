@@ -1,13 +1,3 @@
 {
-  "posts": [
-    {
-      "id": "20261108-2043-welcome",
-      "date": "2026-11-08",
-      "time": "20:43",
-      "font": "sans",
-      "content": "欢迎来到我的博客！🎉\n\n这里记录我的日常生活和学习点滴。\n欢迎常来逛逛～",
-      "content_en": "Welcome to my blog! 🎉\n\nHere I share my daily life and study.\nFeel free to drop by often～",
-      "media": []
-    }
-  ]
+  "posts": []
 }
