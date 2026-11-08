@@ -408,6 +408,11 @@ footer{text-align:center;color:var(--muted);font-size:12.5px;margin-top:60px;fon
     });
     return html ? '<div class="post-media">' + html + '</div>' : '';
   }
+  function postText(p){
+    // 按当前语言返回正文：英文模式下优先英文，否则中文
+    if (currentLang === 'en' && p.content_en) return p.content_en;
+    return p.content || '';
+  }
   function renderPost(p){
     var d = new Date(p.date + 'T00:00:00');
     var dateStr = isNaN(d) ? p.date : (d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0'));
@@ -415,7 +420,7 @@ footer{text-align:center;color:var(--muted);font-size:12.5px;margin-top:60px;fon
     el.className = 'post';
     el.innerHTML = 
       '<div class="post-head"><span class="post-date">' + esc(dateStr) + '</span><span class="post-time">' + esc(p.time || '') + '</span></div>' +
-      '<div class="post-content ' + postFontClass(p.font) + '">' + esc(p.content) + '</div>' +
+      '<div class="post-content ' + postFontClass(p.font) + '">' + esc(postText(p)) + '</div>' +
       mediaHTML(p.media);
     feedEl.appendChild(el);
     // reveal
@@ -427,7 +432,7 @@ footer{text-align:center;color:var(--muted);font-size:12.5px;margin-top:60px;fon
     var list = allPosts.filter(function(p){
       if (df !== 'all' && p.date !== df) return false;
       if (kw){
-        var hay = (p.content || '').toLowerCase();
+        var hay = ((p.content || '') + ' ' + (p.content_en || '')).toLowerCase();
         var mediaNames = (p.media || []).map(function(m){ return m.src; }).join(' ').toLowerCase();
         if (hay.indexOf(kw) === -1 && mediaNames.indexOf(kw) === -1) return false;
       }

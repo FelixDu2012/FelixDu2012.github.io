@@ -7,11 +7,12 @@
  功能：
   1. 每天无需修改源码即可添加博客内容（文字 / 图片 / 视频 / 音频）
   2. 支持表情、特殊符号，并可为每篇内容选择字体
-  3. 多媒体文件单独存放到 media/ 目录（不做 Base64，加载快）
-  4. 内容写入 posts.json（网页按时间倒序展示）
-  5. 自动 push 到 GitHub，实时显示推送进度与成功/失败状态
-  6. 本地同时保留一份内容副本（本地仓库 + _backup 备份）
-  7. 支持删除已有动态（含清理不再被引用的媒体文件）
+  3. 支持中英双语发布（分别填写中文与英文，网页按语言自动切换显示）
+  4. 多媒体文件单独存放到 media/ 目录（不做 Base64，加载快）
+  5. 内容写入 posts.json（网页按时间倒序展示）
+  6. 自动 push 到 GitHub，实时显示推送进度与成功/失败状态
+  7. 本地同时保留一份内容副本（本地仓库 + _backup 备份）
+  8. 支持删除已有动态（含清理不再被引用的媒体文件）
 
  用法：  python publish.py
 ============================================================
@@ -322,10 +323,15 @@ def delete_posts():
     # 倒序展示（最新的在上，与网页一致）
     print("\n—— 当前动态（共 %d 条，最新在上）——" % n)
     for i, p in enumerate(reversed(posts), 1):
-        preview = (p.get("content") or "").replace("\n", " ")[:40]
+        txt = (p.get("content") or p.get("content_en") or "").replace("\n", " ")[:40]
         media_n = len(p.get("media") or [])
-        tag = "  [%d 个媒体]" % media_n if media_n else ""
-        print("  %2d. %s %s  %s%s" % (i, p.get("date", "?"), p.get("time", ""), preview, tag))
+        tags = []
+        if p.get("content") and p.get("content_en"):
+            tags.append("中英")
+        if media_n:
+            tags.append("%d媒体" % media_n)
+        tag = "  [" + " ".join(tags) + "]" if tags else ""
+        print("  %2d. %s %s  %s%s" % (i, p.get("date", "?"), p.get("time", ""), txt, tag))
 
     print("\n  请选择要删除的动态（按上面的编号）：")
     print("    单个编号：如 3          多个编号（空格分隔）：如 1 3 5")
@@ -418,11 +424,12 @@ def publish_new():
 
     print("\n开始发布新内容……\n")
 
-    # 1) 文字内容
+    # 1) 文字内容（中文 + 英文，双语发布）
     emoji_helper()
     print()
-    content = read_multiline("—— 输入文字内容 ——")
-    if content.strip() == "":
+    content = read_multiline("—— 输入中文内容 ——")
+    content_en = read_multiline("—— 输入英文内容（可选，直接回车跳过）——")
+    if content.strip() == "" and content_en.strip() == "":
         # 允许纯媒体内容
         ok = read_text("  内容为空，仅发布媒体？(y/n，默认 n)： ").strip().lower()
         if ok not in ("y", "yes"):
@@ -453,7 +460,9 @@ def publish_new():
     print("=" * 58)
     print("  日期：%s %s" % (now.strftime("%Y-%m-%d"), now.strftime("%H:%M")))
     print("  字体：%s" % dict(FONTS).get(font, font))
-    print("  内容：%s" % (content[:60] + ("…" if len(content) > 60 else "") or "(无)"))
+    print("  中文：%s" % (content[:60] + ("…" if len(content) > 60 else "") or "(无)"))
+    if content_en.strip():
+        print("  英文：%s" % (content_en[:60] + ("…" if len(content_en) > 60 else "")))
     if images:
         print("  图片：%d 张" % len(images))
     if video:
@@ -480,6 +489,7 @@ def publish_new():
         "time": now.strftime("%H:%M"),
         "font": font,
         "content": content,
+        "content_en": content_en,
         "media": media_list,
     }
     save_posts(post)
