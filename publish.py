@@ -11,6 +11,7 @@
   4. 内容写入 posts.json（网页按时间倒序展示）
   5. 自动 push 到 GitHub，实时显示推送进度与成功/失败状态
   6. 本地同时保留一份内容副本（本地仓库 + _backup 备份）
+  7. 支持删除已有动态（含清理不再被引用的媒体文件）
 
  用法：  python publish.py
 ============================================================
@@ -163,8 +164,8 @@ def emoji_helper():
     print("  （小技巧：Windows 按 Win+. 可打开系统表情面板直接输入）")
 
 
-def save_posts(post):
-    """把新内容追加到 posts.json（保留原有内容，倒序交给网页处理）。"""
+def load_posts():
+    """读取 posts.json，返回 {'posts': [...]}。"""
     data = {"posts": []}
     if os.path.exists(POSTS_FILE):
         try:
@@ -174,10 +175,21 @@ def save_posts(post):
             data = {"posts": []}
     if not isinstance(data.get("posts"), list):
         data["posts"] = []
-    data["posts"].append(post)
+    return data
+
+
+def write_posts(data):
+    """写入 posts.json 并做本地备份。"""
     with open(POSTS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     backup()
+
+
+def save_posts(post):
+    """把新内容追加到 posts.json（保留原有内容，倒序交给网页处理）。"""
+    data = load_posts()
+    data["posts"].append(post)
+    write_posts(data)
 
 
 def backup():
@@ -224,8 +236,8 @@ def run_git(args, show_output=True):
         return 127, "未找到 git，请确认已安装 Git。"
 
 
-def git_push_with_progress():
-    """自动 push 到 GitHub，实时显示进度与成功/失败状态。"""
+def git_push_with_progress(action="发布新内容"):
+    """自动 push 到 GitHub，实时显示进度与成功/失败状态。action 用于提交信息。"""
     print("\n—— 正在推送到 GitHub ——")
 
     # 1) 检查 git 仓库
@@ -249,7 +261,7 @@ def git_push_with_progress():
         return False
 
     # 4) git commit（无改动则跳过）
-    rc, out = run_git(["commit", "-m", "发布新内容 " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M")])
+    rc, out = run_git(["commit", "-m", action + " " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M")])
     if rc != 0:
         if "nothing to commit" in out or "无文件要提交" in out:
             print("  · 没有新的改动，跳过提交。")
@@ -293,9 +305,114 @@ def git_push_with_progress():
         return False
 
 
+# ---------------- 删除动态 ----------------
+def delete_posts():
+    """删除已有动态（支持单个/多个/全部），并清理不再被引用的媒体文件。"""
+    clear()
+    banner()
+
+    data = load_posts()
+    posts = data["posts"]
+    n = len(posts)
+    if n == 0:
+        print("\n  还没有任何动态，无需删除。")
+        read_text("\n  按回车返回主菜单……")
+        return
+
+    # 倒序展示（最新的在上，与网页一致）
+    print("\n—— 当前动态（共 %d 条，最新在上）——" % n)
+    for i, p in enumerate(reversed(posts), 1):
+        preview = (p.get("content") or "").replace("\n", " ")[:40]
+        media_n = len(p.get("media") or [])
+        tag = "  [%d 个媒体]" % media_n if media_n else ""
+        print("  %2d. %s %s  %s%s" % (i, p.get("date", "?"), p.get("time", ""), preview, tag))
+
+    print("\n  请选择要删除的动态（按上面的编号）：")
+    print("    单个编号：如 3          多个编号（空格分隔）：如 1 3 5")
+    print("    0 或 all：删除全部      直接回车：取消")
+    choice = read_text("  请输入： ").strip()
+    if choice == "":
+        print("  已取消。")
+        return
+
+    # 解析选择 -> 原始列表索引
+    if choice.lower() in ("0", "all"):
+        orig_indices = list(range(n))
+    else:
+        orig_indices = []
+        for part in choice.split():
+            if part.isdigit() and 1 <= int(part) <= n:
+                orig_indices.append(n - int(part))  # 倒序编号 i -> 原索引 n-i
+            else:
+                print("  ⚠ 忽略无效编号：%s" % part)
+        if not orig_indices:
+            print("  没有有效编号，已取消。")
+            return
+        orig_indices = sorted(set(orig_indices))
+
+    to_delete = [posts[i] for i in orig_indices]
+
+    # 确认
+    print("\n  将要删除以下 %d 条动态：" % len(to_delete))
+    for p in to_delete:
+        preview = (p.get("content") or "(无文字)").replace("\n", " ")[:40]
+        print("    - %s %s  %s" % (p.get("date", "?"), p.get("time", ""), preview))
+    confirm = read_text("  确认删除？(y/n，默认 n)： ").strip().lower()
+    if confirm not in ("y", "yes"):
+        print("  已取消删除。")
+        return
+
+    # 收集被删动态的媒体路径
+    deleted_media = []
+    for p in to_delete:
+        for m in (p.get("media") or []):
+            if m.get("src"):
+                deleted_media.append(m["src"])
+
+    # 移除
+    remaining = [posts[i] for i in range(n) if i not in orig_indices]
+    data["posts"] = remaining
+    write_posts(data)
+    print("  已从 posts.json 删除 %d 条动态（本地副本：%s）。" % (len(to_delete), BACKUP_DIR))
+
+    # 清理不再被引用的媒体文件
+    if deleted_media:
+        still_used = set()
+        for p in remaining:
+            for m in (p.get("media") or []):
+                if m.get("src"):
+                    still_used.add(m["src"])
+        orphaned = [s for s in deleted_media if s not in still_used]
+        if orphaned:
+            print("\n  检测到 %d 个不再被引用的媒体文件：" % len(orphaned))
+            for s in orphaned:
+                print("    - %s" % s)
+            rm = read_text("  是否一并删除这些媒体文件？(y/n，默认 y)： ").strip().lower()
+            if rm not in ("n", "no"):
+                for s in orphaned:
+                    fp = os.path.join(REPO_DIR, s.replace("/", os.sep))
+                    try:
+                        if os.path.isfile(fp):
+                            os.remove(fp)
+                            print("    已删除：%s" % s)
+                    except Exception as e:
+                        print("    ⚠ 删除失败 %s：%s" % (s, e))
+
+    # 推送
+    success = git_push_with_progress(action="删除动态")
+
+    print("\n" + "=" * 58)
+    if success:
+        print("  ✔ 删除完成！网站已更新。")
+    else:
+        print("  ⚠ 本地已删除，但推送未成功。")
+        print("    你可以稍后手动执行： git push origin HEAD")
+    print("=" * 58)
+    read_text("\n  按回车返回主菜单……")
+
+
 # ---------------- 主流程 ----------------
-def main():
-    setup_console()
+def publish_new():
     clear()
     banner()
 
@@ -379,6 +496,31 @@ def main():
         print("    你可以稍后手动执行： git push origin HEAD")
     print("  本地内容已保留（仓库目录 + %s）。" % BACKUP_DIR)
     print("=" * 58)
+    read_text("\n  按回车返回主菜单……")
+
+
+def main():
+    """主菜单：发布 / 删除 / 退出。"""
+    setup_console()
+    while True:
+        clear()
+        banner()
+        print("\n  请选择操作：")
+        print("    1. 发布新内容")
+        print("    2. 删除已有动态")
+        print("    3. 退出")
+        print()
+        s = read_text("  请输入 (1-3，回车=1)： ").strip().lower()
+        if s == "" or s == "1":
+            publish_new()
+        elif s == "2":
+            delete_posts()
+        elif s == "3" or s in ("q", "quit", "exit"):
+            print("\n  再见！")
+            return
+        else:
+            print("  ⚠ 输入无效，请重新选择。")
+            time.sleep(1)
 
 
 if __name__ == "__main__":
