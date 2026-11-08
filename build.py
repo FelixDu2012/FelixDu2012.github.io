@@ -12,13 +12,7 @@ def b64(path):
     with open(path, 'rb') as f:
         return base64.b64encode(f.read()).decode('ascii')
 
-FONT_SC   = b64(os.path.join(ROOT, 'assets/fonts/NotoSansSC-Regular.woff2'))
-FONT_R    = b64(os.path.join(ROOT, 'assets/fonts/LiberationSerif-Regular.woff2'))
-FONT_B    = b64(os.path.join(ROOT, 'assets/fonts/LiberationSerif-Bold.woff2'))
-FONT_I    = b64(os.path.join(ROOT, 'assets/fonts/LiberationSerif-Italic.woff2'))
-FONT_BI   = b64(os.path.join(ROOT, 'assets/fonts/LiberationSerif-BoldItalic.woff2'))
 SIGNATURE = b64(os.path.join(ROOT, 'assets/signature.png'))
-SKIN      = b64(os.path.join(ROOT, 'image2.png'))
 MC_LOGO   = b64(os.path.join(ROOT, 'assets/mc_logo.svg'))
 
 HTML = r"""<!DOCTYPE html>
@@ -29,13 +23,14 @@ HTML = r"""<!DOCTYPE html>
 <title>Felix Du · 个人博客</title>
 <meta name="description" content="Felix Du 的个人博客">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230A0A32'/%3E%3Ctext x='32' y='44' font-size='38' font-family='Georgia,serif' font-style='italic' font-weight='bold' fill='%23E8C890' text-anchor='middle'%3EF%3C/text%3E%3C/svg%3E">
+<link rel="preload" href="assets/fonts/NotoSansSC-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <style>
-/* ============ Fonts (base64 embedded) ============ */
-@font-face{font-family:'Noto Sans SC';src:url(data:font/woff2;base64,__FONT_SC__) format('woff2');font-weight:400;font-style:normal;font-display:swap;}
-@font-face{font-family:'Liberation Serif';src:url(data:font/woff2;base64,__FONT_R__) format('woff2');font-weight:400;font-style:normal;font-display:swap;}
-@font-face{font-family:'Liberation Serif';src:url(data:font/woff2;base64,__FONT_B__) format('woff2');font-weight:700;font-style:normal;font-display:swap;}
-@font-face{font-family:'Liberation Serif';src:url(data:font/woff2;base64,__FONT_I__) format('woff2');font-weight:400;font-style:italic;font-display:swap;}
-@font-face{font-family:'Liberation Serif';src:url(data:font/woff2;base64,__FONT_BI__) format('woff2');font-weight:700;font-style:italic;font-display:swap;}
+/* ============ Fonts (独立文件，浏览器并行加载 + 缓存) ============ */
+@font-face{font-family:'Noto Sans SC';src:url('assets/fonts/NotoSansSC-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap;}
+@font-face{font-family:'Liberation Serif';src:url('assets/fonts/LiberationSerif-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap;}
+@font-face{font-family:'Liberation Serif';src:url('assets/fonts/LiberationSerif-Bold.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap;}
+@font-face{font-family:'Liberation Serif';src:url('assets/fonts/LiberationSerif-Italic.woff2') format('woff2');font-weight:400;font-style:italic;font-display:swap;}
+@font-face{font-family:'Liberation Serif';src:url('assets/fonts/LiberationSerif-BoldItalic.woff2') format('woff2');font-weight:700;font-style:italic;font-display:swap;}
 
 /* ============ Base ============ */
 :root{
@@ -282,7 +277,7 @@ footer{text-align:center;color:var(--muted);font-size:12.5px;margin-top:60px;fon
           <img src="data:image/svg+xml;base64,__MC_LOGO__" alt="Minecraft">
         </a>
         <div class="mc-name"><span data-i18n="gameName">游戏名</span>：<b>DYF2012</b></div>
-        <div class="mc-skin"><img src="data:image/png;base64,__SKIN__" alt="Minecraft skin"></div>
+        <div class="mc-skin"><img src="image2.png" loading="lazy" alt="Minecraft skin"></div>
       </div>
     </section>
 
@@ -493,13 +488,7 @@ footer{text-align:center;color:var(--muted);font-size:12.5px;margin-top:60px;fon
 """
 
 html = HTML
-html = html.replace('__FONT_SC__', FONT_SC)
-html = html.replace('__FONT_R__', FONT_R)
-html = html.replace('__FONT_B__', FONT_B)
-html = html.replace('__FONT_I__', FONT_I)
-html = html.replace('__FONT_BI__', FONT_BI)
 html = html.replace('__SIGNATURE__', SIGNATURE)
-html = html.replace('__SKIN__', SKIN)
 html = html.replace('__MC_LOGO__', MC_LOGO)
 
 out = os.path.join(ROOT, 'index.html')
