@@ -466,7 +466,7 @@ footer{text-align:center;color:var(--muted);font-size:12.5px;margin-top:60px;fon
   lightbox.addEventListener('click', function(){ lightbox.style.display = 'none'; });
 
   /* ============ 加载 posts.json ============ */
-  fetch('posts.json', {cache:'no-store'})
+  fetch('posts.json?_=' + Date.now(), {cache:'no-store'})
     .then(function(r){ if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
     .then(function(data){
       allPosts = (data.posts || []).sort(function(a,b){ return (b.date + ' ' + (b.time||'')).localeCompare(a.date + ' ' + (a.time||'')); });
